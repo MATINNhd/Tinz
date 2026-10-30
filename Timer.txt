@@ -1,0 +1,187 @@
+-- ==========================================
+-- EXECUTOR SCRIPT WITH CONFIG AUTO-SAVE
+-- Full Black Screen + Auto Walk + Anti-AFK
+-- ==========================================
+
+local RunService = game:GetService("RunService")
+local CoreGui = game:GetService("CoreGui")
+local Players = game:GetService("Players")
+local VirtualUser = game:GetService("VirtualUser")
+local LocalPlayer = Players.LocalPlayer
+
+-- ------------------------------------------
+-- 0. ระบบจัดการไฟล์บันทึกค่า (Config System)
+-- ------------------------------------------
+local ConfigFileName = "AFK_Script_Config.json"
+
+local function saveConfig(isBlackState, isWalkState)
+    if writefile then
+        local data = {
+            BlackScreen = isBlackState,
+            AutoWalk = isWalkState
+        }
+        -- แปลงตารางข้อมูลเป็นข้อความ JSON แล้วบันทึก
+        pcall(function()
+            writefile(ConfigFileName, game:GetService("HttpService"):JSONEncode(data))
+        end)
+    end
+end
+
+local function loadConfig()
+    if isfile and isfile(ConfigFileName) and readfile then
+        local success, result = pcall(function()
+            return game:GetService("HttpService"):JSONDecode(readfile(ConfigFileName))
+        end)
+        if success and type(result) == "table" then
+            return result
+        end
+    end
+    return { BlackScreen = false, AutoWalk = false } -- ค่าเริ่มต้นถ้ายังไม่มีไฟล์
+end
+
+local savedConfig = loadConfig()
+
+-- ------------------------------------------
+-- 1. ระบบ Anti-AFK
+-- ------------------------------------------
+LocalPlayer.Idled:Connect(function()
+    VirtualUser:CaptureController()
+    VirtualUser:ClickButton2(Vector2.new(0, 0))
+end)
+
+-- ------------------------------------------
+-- 2. สร้าง ScreenGui หลักใน CoreGui
+-- ------------------------------------------
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "Executor_AFK_Suite"
+ScreenGui.ResetOnSpawn = false
+ScreenGui.IgnoreGuiInset = true
+
+pcall(function() ScreenGui.Parent = CoreGui end)
+if not ScreenGui.Parent then ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui") end
+
+-- ------------------------------------------
+-- 3. UI จอดำเต็มจอ
+-- ------------------------------------------
+local BlackFrame = Instance.new("Frame")
+BlackFrame.Name = "BlackFrame"
+BlackFrame.Size = UDim2.new(1, 0, 1, 0)
+BlackFrame.Position = UDim2.new(0, 0, 0, 0)
+BlackFrame.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+BlackFrame.BorderSizePixel = 0
+BlackFrame.Visible = savedConfig.BlackScreen -- โหลดค่าที่เซฟไว้
+BlackFrame.ZIndex = 9998
+BlackFrame.Parent = ScreenGui
+
+local StatusText = Instance.new("TextLabel")
+StatusText.Size = UDim2.new(1, 0, 0, 60)
+StatusText.Position = UDim2.new(0, 0, 0.5, -30)
+StatusText.BackgroundTransparency = 1
+StatusText.Text = "AFK MODE ACTIVE\n[3D Rendering: OFF | Anti-AFK: ON]"
+StatusText.TextColor3 = Color3.fromRGB(0, 255, 127)
+StatusText.TextSize = 22
+StatusText.Font = Enum.Font.SourceSansBold
+StatusText.Parent = BlackFrame
+
+-- ถ้าตอนเปิดเกมค่า BlackScreen เป็น true ให้ปิด 3D Render ทันที
+if savedConfig.BlackScreen then
+    RunService:Set3DRenderEnabled(false)
+end
+
+-- ------------------------------------------
+-- 4. ปุ่ม Toggle หน้าจอดำ
+-- ------------------------------------------
+local BlackBtn = Instance.new("TextButton")
+BlackBtn.Name = "BlackBtn"
+BlackBtn.Size = UDim2.new(0, 150, 0, 45)
+BlackBtn.Position = UDim2.new(0, 20, 0, 20)
+BlackBtn.BackgroundColor3 = savedConfig.BlackScreen and Color3.fromRGB(0, 170, 0) or Color3.fromRGB(40, 40, 40)
+BlackBtn.Text = savedConfig.BlackScreen and "Black Screen: ON" or "Black Screen: OFF"
+BlackBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+BlackBtn.Font = Enum.Font.SourceSansBold
+BlackBtn.TextSize = 14
+BlackBtn.ZIndex = 9999
+BlackBtn.Parent = ScreenGui
+
+local isBlack = savedConfig.BlackScreen
+BlackBtn.MouseButton1Click:Connect(function()
+    isBlack = not isBlack
+    BlackFrame.Visible = isBlack
+    
+    if isBlack then
+        BlackBtn.Text = "Black Screen: ON"
+        BlackBtn.BackgroundColor3 = Color3.fromRGB(0, 170, 0)
+        RunService:Set3DRenderEnabled(false)
+    else
+        BlackBtn.Text = "Black Screen: OFF"
+        BlackBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+        RunService:Set3DRenderEnabled(true)
+    end
+    -- บันทึกค่าลงไฟล์ทันทีเมื่อกดเปลี่ยน
+    saveConfig(isBlack, isWalking)
+end)
+
+-- ------------------------------------------
+-- 5. ปุ่ม Toggle เดินวน
+-- ------------------------------------------
+local WalkBtn = Instance.new("TextButton")
+WalkBtn.Name = "WalkBtn"
+WalkBtn.Size = UDim2.new(0, 150, 0, 45)
+WalkBtn.Position = UDim2.new(0, 180, 0, 20)
+WalkBtn.BackgroundColor3 = savedConfig.AutoWalk and Color3.fromRGB(0, 170, 0) or Color3.fromRGB(40, 40, 40)
+WalkBtn.Text = savedConfig.AutoWalk and "Auto Walk: ON" or "Auto Walk: OFF"
+WalkBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+WalkBtn.Font = Enum.Font.SourceSansBold
+WalkBtn.TextSize = 14
+WalkBtn.ZIndex = 9999
+WalkBtn.Parent = ScreenGui
+
+local isWalking = savedConfig.AutoWalk
+WalkBtn.MouseButton1Click:Connect(function()
+    isWalking = not isWalking
+    if isWalking then
+        WalkBtn.Text = "Auto Walk: ON"
+        WalkBtn.BackgroundColor3 = Color3.fromRGB(0, 170, 0)
+    else
+        WalkBtn.Text = "Auto Walk: OFF"
+        WalkBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+        
+        pcall(function()
+            local char = LocalPlayer.Character
+            if char and char:FindFirstChild("Humanoid") then
+                char.Humanoid:MoveTo(char.HumanoidRootPart.Position)
+            end
+        end)
+    end
+    -- บันทึกค่าลงไฟล์ทันทีเมื่อกดเปลี่ยน
+    saveConfig(isBlack, isWalking)
+end)
+
+-- ------------------------------------------
+-- 6. ลูปการทำงานเดินวน (Auto Walk Loop)
+-- ------------------------------------------
+task.spawn(function()
+    while true do
+        task.wait(1)
+        if isWalking then
+            pcall(function()
+                local character = LocalPlayer.Character
+                if character and character:FindFirstChild("HumanoidRootPart") and character:FindFirstChild("Humanoid") then
+                    local humanoid = character.Humanoid
+                    local hrp = character.HumanoidRootPart
+                    
+                    local startPos = hrp.Position
+                    local targetPos = startPos + (hrp.CFrame.LookVector * 15)
+                    
+                    humanoid:MoveTo(targetPos)
+                    humanoid.MoveToFinished:Wait()
+                    
+                    if not isWalking then return end
+                    
+                    humanoid:MoveTo(startPos)
+                    humanoid.MoveToFinished:Wait()
+                end
+            end)
+        end
+    end
+end)
