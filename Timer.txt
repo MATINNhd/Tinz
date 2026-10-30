@@ -1,13 +1,11 @@
 -- ==========================================
--- EXECUTOR SCRIPT WITH CONFIG, PING & FPS
--- Full Black Screen + Auto Walk + Anti-AFK
+-- EXECUTOR SCRIPT WITH CONFIG, PING & FPS (FIXED BUTTONS)
 -- ==========================================
 
 local RunService = game:GetService("RunService")
 local CoreGui = game:GetService("CoreGui")
 local Players = game:GetService("Players")
 local VirtualUser = game:GetService("VirtualUser")
-local Stats = game:GetService("Stats")
 local LocalPlayer = Players.LocalPlayer
 
 -- ------------------------------------------
@@ -76,7 +74,7 @@ BlackFrame.Position = UDim2.new(0, 0, 0, 0)
 BlackFrame.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
 BlackFrame.BorderSizePixel = 0
 BlackFrame.Visible = isBlack
-BlackFrame.ZIndex = 9998
+BlackFrame.ZIndex = 9998 -- อยู่ใต้ปุ่ม (ปุ่ม ZIndex สูงกว่า จะได้ไม่หาย)
 BlackFrame.Parent = ScreenGui
 
 -- ข้อความสถานะกลางจอ (แสดงสถานะ + ปิง + FPS)
@@ -84,15 +82,12 @@ local StatusText = Instance.new("TextLabel")
 StatusText.Size = UDim2.new(1, 0, 0, 100)
 StatusText.Position = UDim2.new(0, 0, 0.5, -50)
 StatusText.BackgroundTransparency = 1
-StatusText.Text = "AFK MODE ACTIVE\n[3D Rendering: OFF | Anti-AFK: ON]\nPing: 0 ms | FPS: 0"
+StatusText.Text = "AFK MODE ACTIVE\n[Black Screen: ON | Anti-AFK: ON]\nPing: 0 ms | FPS: 0"
 StatusText.TextColor3 = Color3.fromRGB(0, 255, 127)
 StatusText.TextSize = 20
 StatusText.Font = Enum.Font.SourceSansBold
+StatusText.ZIndex = 9999
 StatusText.Parent = BlackFrame
-
-if isBlack then
-    RunService:Set3DRenderEnabled(false)
-end
 
 -- ------------------------------------------
 -- 5. แสดงผล Ping และ FPS แบบเรียลไทม์
@@ -110,13 +105,11 @@ RunService.RenderStepped:Connect(function()
     end
     
     pcall(function()
-        -- ดึงค่า Ping ของผู้เล่น
         local ping = math.floor(LocalPlayer:GetNetworkPing() * 1000)
         
-        -- อัปเดตข้อความบนหน้าจอดำ
         if isBlack then
             StatusText.Text = string.format(
-                "AFK MODE ACTIVE\n[3D Rendering: OFF | Anti-AFK: ON]\nPing: %d ms | FPS: %d", 
+                "AFK MODE ACTIVE\n[Black Screen: ON | Anti-AFK: ON]\nPing: %d ms | FPS: %d", 
                 ping, currentFPS
             )
         end
@@ -124,7 +117,7 @@ RunService.RenderStepped:Connect(function()
 end)
 
 -- ------------------------------------------
--- 6. ปุ่ม Toggle หน้าจอดำ
+-- 6. ปุ่ม Toggle หน้าจอดำ (กำหนด ZIndex สูงสุดเพื่อให้ปุ่มไม่หาย)
 -- ------------------------------------------
 local BlackBtn = Instance.new("TextButton")
 BlackBtn.Name = "BlackBtn"
@@ -135,7 +128,7 @@ BlackBtn.Text = isBlack and "Black Screen: ON" or "Black Screen: OFF"
 BlackBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 BlackBtn.Font = Enum.Font.SourceSansBold
 BlackBtn.TextSize = 14
-BlackBtn.ZIndex = 9999
+BlackBtn.ZIndex = 10000 -- อยู่เหนือสุด ปุ่มไม่หายแน่นอน
 BlackBtn.Parent = ScreenGui
 
 BlackBtn.MouseButton1Click:Connect(function()
@@ -145,11 +138,9 @@ BlackBtn.MouseButton1Click:Connect(function()
     if isBlack then
         BlackBtn.Text = "Black Screen: ON"
         BlackBtn.BackgroundColor3 = Color3.fromRGB(0, 170, 0)
-        RunService:Set3DRenderEnabled(false)
     else
         BlackBtn.Text = "Black Screen: OFF"
         BlackBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-        RunService:Set3DRenderEnabled(true)
     end
     saveConfig(isBlack, isWalking)
 end)
@@ -166,7 +157,7 @@ WalkBtn.Text = isWalking and "Auto Walk: ON" or "Auto Walk: OFF"
 WalkBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 WalkBtn.Font = Enum.Font.SourceSansBold
 WalkBtn.TextSize = 14
-WalkBtn.ZIndex = 9999
+WalkBtn.ZIndex = 10000 -- อยู่เหนือสุด ปุ่มไม่หายแน่นอน
 WalkBtn.Parent = ScreenGui
 
 WalkBtn.MouseButton1Click:Connect(function()
