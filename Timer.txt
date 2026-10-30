@@ -1,5 +1,5 @@
 -- ==========================================
--- EXECUTOR SCRIPT WITH CONFIG AUTO-SAVE
+-- EXECUTOR SCRIPT WITH CONFIG, PING & FPS
 -- Full Black Screen + Auto Walk + Anti-AFK
 -- ==========================================
 
@@ -7,6 +7,7 @@ local RunService = game:GetService("RunService")
 local CoreGui = game:GetService("CoreGui")
 local Players = game:GetService("Players")
 local VirtualUser = game:GetService("VirtualUser")
+local Stats = game:GetService("Stats")
 local LocalPlayer = Players.LocalPlayer
 
 -- ------------------------------------------
@@ -20,7 +21,6 @@ local function saveConfig(isBlackState, isWalkState)
             BlackScreen = isBlackState,
             AutoWalk = isWalkState
         }
-        -- แปลงตารางข้อมูลเป็นข้อความ JSON แล้วบันทึก
         pcall(function()
             writefile(ConfigFileName, game:GetService("HttpService"):JSONEncode(data))
         end)
@@ -36,13 +36,19 @@ local function loadConfig()
             return result
         end
     end
-    return { BlackScreen = false, AutoWalk = false } -- ค่าเริ่มต้นถ้ายังไม่มีไฟล์
+    return { BlackScreen = false, AutoWalk = false }
 end
 
 local savedConfig = loadConfig()
 
 -- ------------------------------------------
--- 1. ระบบ Anti-AFK
+-- 1. ประกาศตัวแปรสถานะหลัก
+-- ------------------------------------------
+local isBlack = savedConfig.BlackScreen
+local isWalking = savedConfig.AutoWalk
+
+-- ------------------------------------------
+-- 2. ระบบ Anti-AFK
 -- ------------------------------------------
 LocalPlayer.Idled:Connect(function()
     VirtualUser:CaptureController()
@@ -50,7 +56,7 @@ LocalPlayer.Idled:Connect(function()
 end)
 
 -- ------------------------------------------
--- 2. สร้าง ScreenGui หลักใน CoreGui
+-- 3. สร้าง ScreenGui หลักใน CoreGui
 -- ------------------------------------------
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "Executor_AFK_Suite"
@@ -61,7 +67,7 @@ pcall(function() ScreenGui.Parent = CoreGui end)
 if not ScreenGui.Parent then ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui") end
 
 -- ------------------------------------------
--- 3. UI จอดำเต็มจอ
+-- 4. UI จอดำเต็มจอ
 -- ------------------------------------------
 local BlackFrame = Instance.new("Frame")
 BlackFrame.Name = "BlackFrame"
@@ -69,41 +75,69 @@ BlackFrame.Size = UDim2.new(1, 0, 1, 0)
 BlackFrame.Position = UDim2.new(0, 0, 0, 0)
 BlackFrame.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
 BlackFrame.BorderSizePixel = 0
-BlackFrame.Visible = savedConfig.BlackScreen -- โหลดค่าที่เซฟไว้
+BlackFrame.Visible = isBlack
 BlackFrame.ZIndex = 9998
 BlackFrame.Parent = ScreenGui
 
+-- ข้อความสถานะกลางจอ (แสดงสถานะ + ปิง + FPS)
 local StatusText = Instance.new("TextLabel")
-StatusText.Size = UDim2.new(1, 0, 0, 60)
-StatusText.Position = UDim2.new(0, 0, 0.5, -30)
+StatusText.Size = UDim2.new(1, 0, 0, 100)
+StatusText.Position = UDim2.new(0, 0, 0.5, -50)
 StatusText.BackgroundTransparency = 1
-StatusText.Text = "AFK MODE ACTIVE\n[3D Rendering: OFF | Anti-AFK: ON]"
+StatusText.Text = "AFK MODE ACTIVE\n[3D Rendering: OFF | Anti-AFK: ON]\nPing: 0 ms | FPS: 0"
 StatusText.TextColor3 = Color3.fromRGB(0, 255, 127)
-StatusText.TextSize = 22
+StatusText.TextSize = 20
 StatusText.Font = Enum.Font.SourceSansBold
 StatusText.Parent = BlackFrame
 
--- ถ้าตอนเปิดเกมค่า BlackScreen เป็น true ให้ปิด 3D Render ทันที
-if savedConfig.BlackScreen then
+if isBlack then
     RunService:Set3DRenderEnabled(false)
 end
 
 -- ------------------------------------------
--- 4. ปุ่ม Toggle หน้าจอดำ
+-- 5. แสดงผล Ping และ FPS แบบเรียลไทม์
+-- ------------------------------------------
+local lastTick = tick()
+local frameCount = 0
+local currentFPS = 0
+
+RunService.RenderStepped:Connect(function()
+    frameCount = frameCount + 1
+    if tick() - lastTick >= 1 then
+        currentFPS = math.floor(frameCount / (tick() - lastTick))
+        frameCount = 0
+        lastTick = tick()
+    end
+    
+    pcall(function()
+        -- ดึงค่า Ping ของผู้เล่น
+        local ping = math.floor(LocalPlayer:GetNetworkPing() * 1000)
+        
+        -- อัปเดตข้อความบนหน้าจอดำ
+        if isBlack then
+            StatusText.Text = string.format(
+                "AFK MODE ACTIVE\n[3D Rendering: OFF | Anti-AFK: ON]\nPing: %d ms | FPS: %d", 
+                ping, currentFPS
+            )
+        end
+    end)
+end)
+
+-- ------------------------------------------
+-- 6. ปุ่ม Toggle หน้าจอดำ
 -- ------------------------------------------
 local BlackBtn = Instance.new("TextButton")
 BlackBtn.Name = "BlackBtn"
 BlackBtn.Size = UDim2.new(0, 150, 0, 45)
 BlackBtn.Position = UDim2.new(0, 20, 0, 20)
-BlackBtn.BackgroundColor3 = savedConfig.BlackScreen and Color3.fromRGB(0, 170, 0) or Color3.fromRGB(40, 40, 40)
-BlackBtn.Text = savedConfig.BlackScreen and "Black Screen: ON" or "Black Screen: OFF"
+BlackBtn.BackgroundColor3 = isBlack and Color3.fromRGB(0, 170, 0) or Color3.fromRGB(40, 40, 40)
+BlackBtn.Text = isBlack and "Black Screen: ON" or "Black Screen: OFF"
 BlackBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 BlackBtn.Font = Enum.Font.SourceSansBold
 BlackBtn.TextSize = 14
 BlackBtn.ZIndex = 9999
 BlackBtn.Parent = ScreenGui
 
-local isBlack = savedConfig.BlackScreen
 BlackBtn.MouseButton1Click:Connect(function()
     isBlack = not isBlack
     BlackFrame.Visible = isBlack
@@ -117,26 +151,24 @@ BlackBtn.MouseButton1Click:Connect(function()
         BlackBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
         RunService:Set3DRenderEnabled(true)
     end
-    -- บันทึกค่าลงไฟล์ทันทีเมื่อกดเปลี่ยน
     saveConfig(isBlack, isWalking)
 end)
 
 -- ------------------------------------------
--- 5. ปุ่ม Toggle เดินวน
+-- 7. ปุ่ม Toggle เดินวน
 -- ------------------------------------------
 local WalkBtn = Instance.new("TextButton")
 WalkBtn.Name = "WalkBtn"
 WalkBtn.Size = UDim2.new(0, 150, 0, 45)
 WalkBtn.Position = UDim2.new(0, 180, 0, 20)
-WalkBtn.BackgroundColor3 = savedConfig.AutoWalk and Color3.fromRGB(0, 170, 0) or Color3.fromRGB(40, 40, 40)
-WalkBtn.Text = savedConfig.AutoWalk and "Auto Walk: ON" or "Auto Walk: OFF"
+WalkBtn.BackgroundColor3 = isWalking and Color3.fromRGB(0, 170, 0) or Color3.fromRGB(40, 40, 40)
+WalkBtn.Text = isWalking and "Auto Walk: ON" or "Auto Walk: OFF"
 WalkBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 WalkBtn.Font = Enum.Font.SourceSansBold
 WalkBtn.TextSize = 14
 WalkBtn.ZIndex = 9999
 WalkBtn.Parent = ScreenGui
 
-local isWalking = savedConfig.AutoWalk
 WalkBtn.MouseButton1Click:Connect(function()
     isWalking = not isWalking
     if isWalking then
@@ -153,12 +185,11 @@ WalkBtn.MouseButton1Click:Connect(function()
             end
         end)
     end
-    -- บันทึกค่าลงไฟล์ทันทีเมื่อกดเปลี่ยน
     saveConfig(isBlack, isWalking)
 end)
 
 -- ------------------------------------------
--- 6. ลูปการทำงานเดินวน (Auto Walk Loop)
+-- 8. ลูปการทำงานเดินวน (Auto Walk Loop)
 -- ------------------------------------------
 task.spawn(function()
     while true do
