@@ -1,23 +1,26 @@
 -- ==========================================
--- EXECUTOR SCRIPT WITH CONFIG, PING & FPS (FIXED BUTTONS)
+-- ULTIMATE EXECUTOR SCRIPT (UNLOCKED FPS & ULTRA POTATO)
 -- ==========================================
 
 local RunService = game:GetService("RunService")
 local CoreGui = game:GetService("CoreGui")
 local Players = game:GetService("Players")
 local VirtualUser = game:GetService("VirtualUser")
+local Lighting = game:GetService("Lighting")
+local Workspace = game:GetService("Workspace")
 local LocalPlayer = Players.LocalPlayer
 
 -- ------------------------------------------
 -- 0. ระบบจัดการไฟล์บันทึกค่า (Config System)
 -- ------------------------------------------
-local ConfigFileName = "AFK_Script_Config.json"
+local ConfigFileName = "AFK_Ultimate_Config.json"
 
-local function saveConfig(isBlackState, isWalkState)
+local function saveConfig(isBlackState, isWalkState, isFpsBoostState)
     if writefile then
         local data = {
             BlackScreen = isBlackState,
-            AutoWalk = isWalkState
+            AutoWalk = isWalkState,
+            FpsBoost = isFpsBoostState
         }
         pcall(function()
             writefile(ConfigFileName, game:GetService("HttpService"):JSONEncode(data))
@@ -34,7 +37,7 @@ local function loadConfig()
             return result
         end
     end
-    return { BlackScreen = false, AutoWalk = false }
+    return { BlackScreen = false, AutoWalk = false, FpsBoost = false }
 end
 
 local savedConfig = loadConfig()
@@ -44,9 +47,58 @@ local savedConfig = loadConfig()
 -- ------------------------------------------
 local isBlack = savedConfig.BlackScreen
 local isWalking = savedConfig.AutoWalk
+local isFpsBoost = savedConfig.FpsBoost
 
 -- ------------------------------------------
--- 2. ระบบ Anti-AFK
+-- 2. ฟังก์ชันปรับลดกราฟิกแบบลบดีเทล + ปลดล็อก FPS พุ่งสุด
+-- ------------------------------------------
+local function applyFpsBoost(state)
+    pcall(function()
+        if state then
+            -- ปิดแสง เงา และเอฟเฟกต์ทั้งหมด
+            Lighting.GlobalShadows = false
+            Lighting.FogEnd = 9e9
+            Lighting.Brightness = 0
+            for _, v in ipairs(Lighting:GetChildren()) do
+                if v:IsA("PostEffect") or v:IsA("Sky") or v:IsA("Atmosphere") or v:IsA("Clouds") then
+                    v:Destroy()
+                end
+            end
+            
+            -- ลบดีเทลที่ไม่จำเป็นใน Workspace เพื่อรีด FPS
+            for _, obj in ipairs(Workspace:GetDescendants()) do
+                if obj:IsA("BasePart") then
+                    obj.Material = Enum.Material.SmoothPlastic
+                    obj.Reflectance = 0
+                    obj.CastShadow = false
+                    if obj.Size.Magnitude < 3 and not obj.Anchored then
+                        pcall(function() obj:Destroy() end)
+                    end
+                elseif obj:IsA("Decal") or obj:IsA("Texture") or obj:IsA("SpecialMesh") then
+                    obj:Destroy()
+                elseif obj:IsA("ParticleEmitter") or obj:IsA("Trail") or obj:IsA("Fire") or obj:IsA("Smoke") or obj:IsA("Sparkles") then
+                    obj:Destroy()
+                end
+            end
+            
+            -- ปลดล็อก FPS พุ่งสูงสุด (ไม่จำกัดเพดาน)
+            if setfpscap then
+                setfpscap(999)
+            end
+        else
+            if setfpscap then
+                setfpscap(999)
+            end
+        end
+    end)
+end
+
+if isFpsBoost then
+    applyFpsBoost(true)
+end
+
+-- ------------------------------------------
+-- 3. ระบบ Anti-AFK
 -- ------------------------------------------
 LocalPlayer.Idled:Connect(function()
     VirtualUser:CaptureController()
@@ -54,10 +106,10 @@ LocalPlayer.Idled:Connect(function()
 end)
 
 -- ------------------------------------------
--- 3. สร้าง ScreenGui หลักใน CoreGui
+-- 4. สร้าง ScreenGui หลักใน CoreGui
 -- ------------------------------------------
 local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "Executor_AFK_Suite"
+ScreenGui.Name = "Executor_Ultimate_Suite"
 ScreenGui.ResetOnSpawn = false
 ScreenGui.IgnoreGuiInset = true
 
@@ -65,7 +117,7 @@ pcall(function() ScreenGui.Parent = CoreGui end)
 if not ScreenGui.Parent then ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui") end
 
 -- ------------------------------------------
--- 4. UI จอดำเต็มจอ
+-- 5. UI จอดำเต็มจอ
 -- ------------------------------------------
 local BlackFrame = Instance.new("Frame")
 BlackFrame.Name = "BlackFrame"
@@ -74,7 +126,7 @@ BlackFrame.Position = UDim2.new(0, 0, 0, 0)
 BlackFrame.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
 BlackFrame.BorderSizePixel = 0
 BlackFrame.Visible = isBlack
-BlackFrame.ZIndex = 9998 -- อยู่ใต้ปุ่ม (ปุ่ม ZIndex สูงกว่า จะได้ไม่หาย)
+BlackFrame.ZIndex = 9998
 BlackFrame.Parent = ScreenGui
 
 -- ข้อความสถานะกลางจอ (แสดงสถานะ + ปิง + FPS)
@@ -82,7 +134,7 @@ local StatusText = Instance.new("TextLabel")
 StatusText.Size = UDim2.new(1, 0, 0, 100)
 StatusText.Position = UDim2.new(0, 0, 0.5, -50)
 StatusText.BackgroundTransparency = 1
-StatusText.Text = "AFK MODE ACTIVE\n[Black Screen: ON | Anti-AFK: ON]\nPing: 0 ms | FPS: 0"
+StatusText.Text = "AFK MODE ACTIVE\nPing: 0 ms | FPS: 0"
 StatusText.TextColor3 = Color3.fromRGB(0, 255, 127)
 StatusText.TextSize = 20
 StatusText.Font = Enum.Font.SourceSansBold
@@ -90,7 +142,7 @@ StatusText.ZIndex = 9999
 StatusText.Parent = BlackFrame
 
 -- ------------------------------------------
--- 5. แสดงผล Ping และ FPS แบบเรียลไทม์
+-- 6. แสดงผล Ping และ FPS แบบเรียลไทม์
 -- ------------------------------------------
 local lastTick = tick()
 local frameCount = 0
@@ -106,29 +158,28 @@ RunService.RenderStepped:Connect(function()
     
     pcall(function()
         local ping = math.floor(LocalPlayer:GetNetworkPing() * 1000)
-        
         if isBlack then
             StatusText.Text = string.format(
-                "AFK MODE ACTIVE\n[Black Screen: ON | Anti-AFK: ON]\nPing: %d ms | FPS: %d", 
-                ping, currentFPS
+                "AFK MODE ACTIVE\n[Black Screen: ON | Ultra Potato (MAX FPS): %s]\nPing: %d ms | FPS: %d", 
+                isFpsBoost and "ON" or "OFF", ping, currentFPS
             )
         end
     end)
 end)
 
 -- ------------------------------------------
--- 6. ปุ่ม Toggle หน้าจอดำ (กำหนด ZIndex สูงสุดเพื่อให้ปุ่มไม่หาย)
+-- 7. ปุ่ม Toggle หน้าจอดำ
 -- ------------------------------------------
 local BlackBtn = Instance.new("TextButton")
 BlackBtn.Name = "BlackBtn"
-BlackBtn.Size = UDim2.new(0, 150, 0, 45)
+BlackBtn.Size = UDim2.new(0, 140, 0, 45)
 BlackBtn.Position = UDim2.new(0, 20, 0, 20)
 BlackBtn.BackgroundColor3 = isBlack and Color3.fromRGB(0, 170, 0) or Color3.fromRGB(40, 40, 40)
 BlackBtn.Text = isBlack and "Black Screen: ON" or "Black Screen: OFF"
 BlackBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 BlackBtn.Font = Enum.Font.SourceSansBold
-BlackBtn.TextSize = 14
-BlackBtn.ZIndex = 10000 -- อยู่เหนือสุด ปุ่มไม่หายแน่นอน
+BlackBtn.TextSize = 13
+BlackBtn.ZIndex = 10000
 BlackBtn.Parent = ScreenGui
 
 BlackBtn.MouseButton1Click:Connect(function()
@@ -142,22 +193,22 @@ BlackBtn.MouseButton1Click:Connect(function()
         BlackBtn.Text = "Black Screen: OFF"
         BlackBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
     end
-    saveConfig(isBlack, isWalking)
+    saveConfig(isBlack, isWalking, isFpsBoost)
 end)
 
 -- ------------------------------------------
--- 7. ปุ่ม Toggle เดินวน
+-- 8. ปุ่ม Toggle เดินวน (Auto Walk)
 -- ------------------------------------------
 local WalkBtn = Instance.new("TextButton")
 WalkBtn.Name = "WalkBtn"
-WalkBtn.Size = UDim2.new(0, 150, 0, 45)
-WalkBtn.Position = UDim2.new(0, 180, 0, 20)
+WalkBtn.Size = UDim2.new(0, 140, 0, 45)
+WalkBtn.Position = UDim2.new(0, 170, 0, 20)
 WalkBtn.BackgroundColor3 = isWalking and Color3.fromRGB(0, 170, 0) or Color3.fromRGB(40, 40, 40)
 WalkBtn.Text = isWalking and "Auto Walk: ON" or "Auto Walk: OFF"
 WalkBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 WalkBtn.Font = Enum.Font.SourceSansBold
-WalkBtn.TextSize = 14
-WalkBtn.ZIndex = 10000 -- อยู่เหนือสุด ปุ่มไม่หายแน่นอน
+WalkBtn.TextSize = 13
+WalkBtn.ZIndex = 10000
 WalkBtn.Parent = ScreenGui
 
 WalkBtn.MouseButton1Click:Connect(function()
@@ -176,11 +227,40 @@ WalkBtn.MouseButton1Click:Connect(function()
             end
         end)
     end
-    saveConfig(isBlack, isWalking)
+    saveConfig(isBlack, isWalking, isFpsBoost)
 end)
 
 -- ------------------------------------------
--- 8. ลูปการทำงานเดินวน (Auto Walk Loop)
+-- 9. ปุ่ม Toggle ลบดีเทล / ปลดล็อก FPS (Ultra Potato Button)
+-- ------------------------------------------
+local FpsBtn = Instance.new("TextButton")
+FpsBtn.Name = "FpsBtn"
+FpsBtn.Size = UDim2.new(0, 140, 0, 45)
+FpsBtn.Position = UDim2.new(0, 320, 0, 20)
+FpsBtn.BackgroundColor3 = isFpsBoost and Color3.fromRGB(0, 170, 0) or Color3.fromRGB(40, 40, 40)
+FpsBtn.Text = isFpsBoost and "Max FPS Boost: ON" or "Max FPS Boost: OFF"
+FpsBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+FpsBtn.Font = Enum.Font.SourceSansBold
+FpsBtn.TextSize = 13
+FpsBtn.ZIndex = 10000
+FpsBtn.Parent = ScreenGui
+
+FpsBtn.MouseButton1Click:Connect(function()
+    isFpsBoost = not isFpsBoost
+    if isFpsBoost then
+        FpsBtn.Text = "Max FPS Boost: ON"
+        FpsBtn.BackgroundColor3 = Color3.fromRGB(0, 170, 0)
+        applyFpsBoost(true)
+    else
+        FpsBtn.Text = "Max FPS Boost: OFF"
+        FpsBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+        applyFpsBoost(false)
+    end
+    saveConfig(isBlack, isWalking, isFpsBoost)
+end)
+
+-- ------------------------------------------
+-- 10. ลูปการทำงานเดินวน (Auto Walk Loop)
 -- ------------------------------------------
 task.spawn(function()
     while true do
